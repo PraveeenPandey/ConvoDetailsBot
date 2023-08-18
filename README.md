@@ -21,7 +21,7 @@ ConvoDetailsBot is a user details collection system with a conversational interf
    git clone https://github.com/PraveeenPandey/ConvoDetailsBot.git
    cd ConvoDetailsBot
    
-2. Replace YOUR_OPENAI_API_KEY in ConvoDetailsBot_DataCollection.py with your OpenAI API key.
+2. Replace my API KEY with your own OpenAI API KEY in main.py .
 
 3. Run the script:
 
