@@ -7,8 +7,6 @@ Original file is located at
     https://colab.research.google.com/drive/1_PQK2dcy3MHfwfi8ZYVTHomWTkTlOOmA
 """
 
-!pip install openai
-
 from flask import Flask, request, jsonify
 import openai
 import time
@@ -16,7 +14,7 @@ import pandas as pd
 
 app = Flask(__name__)
 
-# Suggested to set up your OpenAI API key, below one is from a free version with limited access
+# Suggested to set up your OpenAI API key, here.
 openai.api_key = "YOUR_OPENAI_API_KEY"
 
 # Initial conversation with system message
@@ -24,7 +22,7 @@ conversation = [
     {"role": "system", "content": "You are a helpful assistant that gathers user details."},
 ]
 
-# Function to interact with chat agents with rate limiting handling
+# Function to interact with chat agents with rate limiting handling(Incase the price limit or no. of tokens is exceeded)
 def chat_with_agent(conversation, message):
     conversation.append({"role": "user", "content": message})
     retries = 3
@@ -36,6 +34,11 @@ def chat_with_agent(conversation, message):
                 messages=conversation
             )
             assistant_reply = response.choices[0].message["content"]
+
+            # If the user denies or wants to skip, follow up firmly
+            if "deny" in assistant_reply.lower() or "skip" in assistant_reply.lower() or "no" in assistant_reply.lower():
+                assistant_reply += "\nAgent: I understand, but we need these details to assist you better. Please provide the required information."
+
             conversation.append({"role": "assistant", "content": assistant_reply})
             return assistant_reply
         except openai.error.RateLimitError as e:
@@ -48,36 +51,36 @@ def chat_with_agent(conversation, message):
 
 # Function to gather user details using designed conversation flow
 def gather_user_details():
-    print("Welcome to the User Details Collection System!")
     user_details = {}
     collected_details = set()
+
+    agent_prompts = {
+        "name": "Hello! To get started, could you kindly let me know your full name?",
+        "email": "Thank you for sharing your name. May I have your email address?",
+        "phone": "Excellent! To stay connected, could you provide your phone number?",
+        "address": "Thanks for sharing your contact details. What is your current address?",
+        "dob": "Got it! When were you born? Please share your date of birth.",
+        "education": "Thank you for providing your date of birth. Lastly, what is your highest level of education?",
+    }
 
     for detail, prompt in agent_prompts.items():
 
         # Ask for the current detail only if it hasn't been provided yet
         if detail not in collected_details:
             assistant_reply = chat_with_agent(conversation, prompt)
-            print("Agent:", assistant_reply)
-            user_response = input("User: ")
-            user_details[detail] = user_response
-            collected_details.add(detail)
 
-    print("Thank you for providing your information!")
+            # Check if the user wants to skip or denies
+            if "deny" in assistant_reply.lower() or "skip" in assistant_reply.lower() or "no" in assistant_reply.lower():
+                chat_with_agent(conversation, "Agent: I understand, but we need these details to assist you better. Please provide the required information.")
+            else:
+                user_details[detail] = assistant_reply
+                collected_details.add(detail)
+
     return user_details
 
-# Chat agent roles and their prompts
-agent_prompts = {
-    "name": "Hello! To get started, could you kindly let me know your full name?",
-    "email": "Thank you for sharing your name. May I have your email address?",
-    "phone": "Excellent! To stay connected, could you provide your phone number?",
-    "address": "Thanks for sharing your contact details. What is your current address?",
-    "dob": "Got it! When were you born? Please share your date of birth.",
-    "education": "Thank you for providing your date of birth. Lastly, what is your highest level of education?",
-}
-
-# Function to gather user details using REST API
+# Define a REST API endpoint for collecting user details
 @app.route("/collect_user_details", methods=["POST"])
-def collect_user_details():
+def collect_user_details_api():
     try:
         user_details = gather_user_details()
         user_details_df = pd.DataFrame(user_details.items(), columns=["Detail", "Response"])
@@ -89,4 +92,3 @@ def collect_user_details():
 
 if __name__ == "__main__":
     app.run(debug=True)
-
